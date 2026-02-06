@@ -105,15 +105,31 @@ export async function callQwenText(prompt: string): Promise<string> {
 /**
  * System prompt for image identification
  */
-export const IDENTIFICATION_PROMPT = `Role: You are a scientific deconstruction engine.
-Task: Identify the main object in this image.
-Output: Return ONLY a JSON object.
-Schema:
+export const IDENTIFICATION_PROMPT = `Role: You are identifying objects in images for a kids' game.
+
+Task: Look at this image and identify the main object.
+
+Output: Return ONLY a JSON object with these fields:
+- name: A specific name (e.g., "iPhone 15 Pro" not just "phone", "Red bicycle" not just "bicycle")
+- category: What type of thing it is (e.g., "Electronic", "Vehicle", "Furniture", "Toy")
+- brief_description: A detailed description that a 10-year-old can understand (2-3 sentences)
+
+Example outputs:
 {
-  "name": "Object Name (e.g. iPhone 15)",
+  "name": "iPhone 15 Pro",
   "category": "Electronic",
-  "brief_description": "A succinct 1-sentence description."
-}`;
+  "brief_description": "A black smartphone with three cameras on the back. It has a large touchscreen and is made by Apple. People use it to make calls, take photos, and use apps."
+}
+
+{
+  "name": "Red Mountain Bike",
+  "category": "Vehicle",
+  "brief_description": "A red bicycle with thick tires for riding on rough trails. It has gears to help you go up hills and hand brakes to stop. The seat can be adjusted for different heights."
+}
+
+Remember: Be specific and descriptive, but use simple words that kids understand!
+
+Output Format: JSON only.`;
 
 /**
  * Generate system prompt for deconstruction

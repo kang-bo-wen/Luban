@@ -24,14 +24,22 @@ export async function POST(request: NextRequest) {
     // Call Qwen Vision API
     const text = await callQwenVision(base64Image, IDENTIFICATION_PROMPT);
 
+    // Clean up markdown code blocks if present
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
     // Parse the JSON response
     let identificationData: IdentificationResponse;
     try {
-      identificationData = JSON.parse(text);
+      identificationData = JSON.parse(cleanedText);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', text);
+      console.error('Failed to parse AI response:', cleanedText);
       return NextResponse.json(
-        { error: 'Failed to parse AI response', details: text },
+        { error: 'Failed to parse AI response', details: cleanedText },
         { status: 500 }
       );
     }

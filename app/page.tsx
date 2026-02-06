@@ -13,6 +13,18 @@ export default function Home() {
             </p>
           </div>
 
+          {/* 开始游戏按钮 */}
+          <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg p-8 mb-8 text-center">
+            <h2 className="text-3xl font-bold mb-4">🎮 开始游戏</h2>
+            <p className="text-lg mb-6">上传图片，AI识别物体，然后递归拆解到自然材料</p>
+            <a
+              href="/deconstruct"
+              className="inline-block bg-white text-purple-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition"
+            >
+              🚀 开始拆解
+            </a>
+          </div>
+
           {/* Status Card */}
           <div className="bg-white/10 backdrop-blur-lg rounded-lg p-8 mb-8 border border-white/20">
             <div className="flex items-center gap-3 mb-4">

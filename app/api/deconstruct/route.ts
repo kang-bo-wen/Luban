@@ -22,14 +22,22 @@ export async function POST(request: NextRequest) {
     // Call Qwen Text API
     const text = await callQwenText(prompt);
 
+    // Clean up markdown code blocks if present
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
     // Parse the JSON response
     let deconstructionData: DeconstructionResponse;
     try {
-      deconstructionData = JSON.parse(text);
+      deconstructionData = JSON.parse(cleanedText);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', text);
+      console.error('Failed to parse AI response:', cleanedText);
       return NextResponse.json(
-        { error: 'Failed to parse AI response', details: text },
+        { error: 'Failed to parse AI response', details: cleanedText },
         { status: 500 }
       );
     }
