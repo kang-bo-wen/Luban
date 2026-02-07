@@ -174,3 +174,4 @@ entropy-reverse/
 ## 📄 许可证
 
 MIT License
+# Trigger rebuild
