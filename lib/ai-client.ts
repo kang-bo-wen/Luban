@@ -18,9 +18,11 @@ const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
 const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation';
 const DASHSCOPE_TEXT_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation';
 
-// 验证配置
-if (!useCustomAI && !DASHSCOPE_API_KEY) {
-  throw new Error('Please configure either custom AI (AI_BASE_URL + AI_API_KEY) or DASHSCOPE_API_KEY');
+// 验证配置（延迟到运行时）
+function validateConfig() {
+  if (!useCustomAI && !DASHSCOPE_API_KEY) {
+    throw new Error('Please configure either custom AI (AI_BASE_URL + AI_API_KEY) or DASHSCOPE_API_KEY');
+  }
 }
 
 /**
@@ -207,6 +209,7 @@ async function callQwenText(prompt: string): Promise<string> {
  * 统一的视觉API调用接口
  */
 export async function callVisionAPI(imageBase64: string, prompt: string): Promise<string> {
+  validateConfig();
   if (useCustomAI) {
     console.log('Using custom AI vision model:', AI_MODEL_VISION);
     return callCustomVision(imageBase64, prompt);
@@ -220,6 +223,7 @@ export async function callVisionAPI(imageBase64: string, prompt: string): Promis
  * 统一的文本API调用接口
  */
 export async function callTextAPI(prompt: string): Promise<string> {
+  validateConfig();
   if (useCustomAI) {
     console.log('Using custom AI text model:', AI_MODEL_TEXT);
     return callCustomText(prompt);
