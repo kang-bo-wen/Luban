@@ -2,6 +2,17 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
+
+// 动态导入 GraphView 以避免 SSR 问题
+const GraphView = dynamic(() => import('../components/GraphView'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-[700px] flex items-center justify-center bg-black/30 rounded-lg">
+      <div className="text-gray-400">加载中...</div>
+    </div>
+  ),
+});
 
 interface IdentificationResult {
   name: string;
@@ -571,11 +582,17 @@ export default function DeconstructionGame() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8">
-          🔬 Entropy Reverse - 物体拆解游戏
-        </h1>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 text-white p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* 标题区域 - 更现代化的设计 */}
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            🔬 Entropy Reverse
+          </h1>
+          <p className="text-xl text-gray-300">
+            物体拆解游戏 - 探索万物的本质
+          </p>
+        </div>
 
         {/* 知识卡片弹窗 */}
         {knowledgeCard && (
@@ -687,10 +704,15 @@ export default function DeconstructionGame() {
         )}
 
         {/* 步骤1: 上传图片 */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 mb-6 border border-white/20">
-          <h2 className="text-2xl font-semibold mb-4">📸 步骤1: 上传图片</h2>
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 mb-6 border-2 border-white/10 hover:border-white/20 transition-all shadow-2xl">
+          <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+            <span className="text-4xl">📸</span>
+            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              步骤1: 上传图片
+            </span>
+          </h2>
           <div className="flex flex-col items-center gap-4">
-            <label className="cursor-pointer bg-blue-500 hover:bg-blue-600 px-6 py-3 rounded-lg font-semibold transition">
+            <label className="cursor-pointer bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-8 py-4 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl hover:scale-105">
               选择图片
               <input
                 type="file"
@@ -732,11 +754,16 @@ export default function DeconstructionGame() {
 
         {/* 步骤2: 识别结果 */}
         {identificationResult && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 mb-6 border border-white/20">
-            <h2 className="text-2xl font-semibold mb-4">✅ 步骤2: 识别结果</h2>
-            <div className="bg-black/30 rounded-lg p-4">
-              <div className="text-xl font-bold mb-2">{identificationResult.name}</div>
-              <div className="text-sm text-gray-300 mb-2">
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 mb-6 border-2 border-white/10 hover:border-white/20 transition-all shadow-2xl">
+            <h2 className="text-3xl font-bold mb-6 flex items-center gap-3">
+              <span className="text-4xl">✅</span>
+              <span className="bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                步骤2: 识别结果
+              </span>
+            </h2>
+            <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 rounded-xl p-6 border border-white/10">
+              <div className="text-2xl font-bold mb-3 text-white">{identificationResult.name}</div>
+              <div className="text-sm text-gray-300 mb-3">
                 分类: {identificationResult.category}
               </div>
               <div className="text-gray-200">
@@ -771,12 +798,47 @@ export default function DeconstructionGame() {
           </div>
         )}
 
-        {/* 步骤3: 拆解树 */}
+        {/* 步骤3: 拆解图谱 */}
         {deconstructionTree && (
-          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 border border-white/20">
-            <h2 className="text-2xl font-semibold mb-4">🌳 步骤3: 拆解树</h2>
-            <div className="bg-black/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">
-              {renderTree(deconstructionTree)}
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border-2 border-white/10 hover:border-white/20 transition-all shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold flex items-center gap-3">
+                <span className="text-4xl">🌌</span>
+                <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  步骤3: 拆解图谱
+                </span>
+              </h2>
+              <button
+                onClick={() => {
+                  const element = document.getElementById('graph-container');
+                  if (element) {
+                    if (document.fullscreenElement) {
+                      document.exitFullscreen();
+                    } else {
+                      element.requestFullscreen();
+                    }
+                  }
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 rounded-xl text-white font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+              >
+                <span>🔍</span>
+                <span>全屏查看</span>
+              </button>
+            </div>
+            <div className="mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl p-4 border border-blue-400/30">
+              <div className="text-sm text-blue-200">
+                💡 <strong>交互提示：</strong>点击蓝色节点继续拆解，绿色节点是自然材料（拆解终点）。使用鼠标滚轮缩放，拖拽画布移动视图。
+              </div>
+            </div>
+            <div id="graph-container" className="bg-black/50 rounded-xl">
+              <GraphView
+                tree={deconstructionTree}
+                loadingNodeIds={loadingNodeIds}
+                knowledgeCache={knowledgeCache}
+                loadingKnowledgeIds={loadingKnowledgeIds}
+                onNodeExpand={handleNodeClick}
+                onShowKnowledge={(node) => fetchKnowledgeCard(node, true)}
+              />
             </div>
           </div>
         )}
