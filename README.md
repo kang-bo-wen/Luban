@@ -6,6 +6,12 @@ colorTo: purple
 sdk: docker
 app_port: 7860
 pinned: false
+license: mit
+tags:
+  - AI
+  - Game
+  - Visualization
+  - Next.js
 ---
 
 # Entropy Reverse - Mode 1: Deconstruction
