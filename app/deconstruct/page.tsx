@@ -37,6 +37,7 @@ export default function DeconstructionGame() {
   const [deconstructionTree, setDeconstructionTree] = useState<TreeNode | null>(null);
   const [isDeconstructing, setIsDeconstructing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState<string>(''); // 新增：显示当前处理状态
+  const [loadingNodeIds, setLoadingNodeIds] = useState<Set<string>>(new Set()); // 跟踪正在加载的节点
 
   // 处理图片上传
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,6 +86,7 @@ export default function DeconstructionGame() {
   // 单层拆解（不递归）
   const deconstructItem = async (
     itemName: string,
+    parentDescription: string,
     parentContext?: string
   ): Promise<TreeNode> => {
     setProcessingStatus(prev => prev + `\n🔍 正在拆解: ${itemName}`);
@@ -116,7 +118,7 @@ export default function DeconstructionGame() {
     const currentNode: TreeNode = {
       id: `${Date.now()}-${itemName}`,
       name: itemName,
-      description: result.parts[0]?.description || '',
+      description: parentDescription,
       isRawMaterial: false,
       children,
       isExpanded: false,
@@ -134,7 +136,10 @@ export default function DeconstructionGame() {
     setProcessingStatus('🚀 开始拆解第一层...');
 
     try {
-      const tree = await deconstructItem(identificationResult.name);
+      const tree = await deconstructItem(
+        identificationResult.name,
+        identificationResult.brief_description
+      );
       setDeconstructionTree(tree);
       setProcessingStatus(prev => prev + '\n\n✅ 第一层拆解完成！点击节点继续拆解');
     } catch (error) {
@@ -148,6 +153,9 @@ export default function DeconstructionGame() {
 
   // 处理节点点击（展开拆解）
   const handleNodeClick = async (nodeId: string, nodeName: string, parentContext?: string) => {
+    // 如果节点正在加载中，不响应点击
+    if (loadingNodeIds.has(nodeId)) return;
+
     // 如果是原材料，不能继续拆解
     const findNode = (tree: TreeNode | null, id: string): TreeNode | null => {
       if (!tree) return null;
@@ -182,6 +190,9 @@ export default function DeconstructionGame() {
 
     // 如果还没有拆解过，进行拆解
     setProcessingStatus(prev => prev + `\n\n🔍 点击拆解: ${nodeName}`);
+
+    // 添加到加载集合
+    setLoadingNodeIds(prev => new Set(prev).add(nodeId));
 
     try {
       const response = await fetch('/api/deconstruct', {
@@ -226,6 +237,13 @@ export default function DeconstructionGame() {
       console.error('拆解错误:', error);
       alert('拆解失败，请重试');
       setProcessingStatus(prev => prev + `\n❌ 拆解 ${nodeName} 失败`);
+    } finally {
+      // 从加载集合中移除
+      setLoadingNodeIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(nodeId);
+        return newSet;
+      });
     }
   };
 
@@ -234,6 +252,7 @@ export default function DeconstructionGame() {
     const indent = depth * 24;
     const canExpand = !node.isRawMaterial;
     const hasChildren = node.children.length > 0;
+    const isLoading = loadingNodeIds.has(node.id);
 
     return (
       <div key={node.id} style={{ marginLeft: `${indent}px` }} className="my-2">
@@ -241,13 +260,23 @@ export default function DeconstructionGame() {
           className={`p-3 rounded-lg transition-all ${
             node.isRawMaterial
               ? 'bg-green-500/20 border-2 border-green-500'
+              : isLoading
+              ? 'bg-gray-500/20 border-2 border-gray-500 cursor-not-allowed'
               : 'bg-blue-500/20 border-2 border-blue-500 cursor-pointer hover:bg-blue-500/30'
           }`}
-          onClick={() => canExpand && handleNodeClick(node.id, node.name, parentName)}
+          onClick={() => canExpand && !isLoading && handleNodeClick(node.id, node.name, parentName)}
         >
           <div className="flex items-center gap-2">
             <span className="text-2xl">
-              {node.isRawMaterial ? '🌿' : hasChildren ? (node.isExpanded ? '📂' : '📦') : '📦'}
+              {isLoading ? (
+                <span className="inline-block animate-spin">🔄</span>
+              ) : node.isRawMaterial ? (
+                '🌿'
+              ) : hasChildren ? (
+                node.isExpanded ? '📂' : '📦'
+              ) : (
+                '📦'
+              )}
             </span>
             <div className="flex-1">
               <div className="font-bold text-lg">{node.name}</div>
@@ -255,13 +284,16 @@ export default function DeconstructionGame() {
               {node.isRawMaterial && (
                 <div className="text-xs text-green-400 mt-1">✅ 自然材料 - 拆解终点</div>
               )}
-              {!node.isRawMaterial && !hasChildren && (
+              {isLoading && (
+                <div className="text-xs text-yellow-400 mt-1">⏳ 正在拆解中...</div>
+              )}
+              {!node.isRawMaterial && !hasChildren && !isLoading && (
                 <div className="text-xs text-blue-400 mt-1">👆 点击拆解此组件</div>
               )}
-              {!node.isRawMaterial && hasChildren && !node.isExpanded && (
+              {!node.isRawMaterial && hasChildren && !node.isExpanded && !isLoading && (
                 <div className="text-xs text-blue-400 mt-1">👆 点击展开 ({node.children.length} 个子组件)</div>
               )}
-              {!node.isRawMaterial && hasChildren && node.isExpanded && (
+              {!node.isRawMaterial && hasChildren && node.isExpanded && !isLoading && (
                 <div className="text-xs text-gray-400 mt-1">👆 点击折叠</div>
               )}
             </div>
@@ -312,9 +344,16 @@ export default function DeconstructionGame() {
               <button
                 onClick={identifyImage}
                 disabled={isIdentifying}
-                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 px-8 py-3 rounded-lg font-semibold transition"
+                className="bg-green-500 hover:bg-green-600 disabled:bg-gray-500 px-8 py-3 rounded-lg font-semibold transition flex items-center gap-2"
               >
-                {isIdentifying ? '识别中...' : '🔍 识别物体'}
+                {isIdentifying ? (
+                  <>
+                    <span className="inline-block animate-spin">🔄</span>
+                    <span>识别中...</span>
+                  </>
+                ) : (
+                  '🔍 识别物体'
+                )}
               </button>
             )}
           </div>
@@ -338,9 +377,16 @@ export default function DeconstructionGame() {
               <button
                 onClick={startDeconstruction}
                 disabled={isDeconstructing}
-                className="mt-4 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-500 px-8 py-3 rounded-lg font-semibold transition"
+                className="mt-4 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-500 px-8 py-3 rounded-lg font-semibold transition flex items-center gap-2"
               >
-                {isDeconstructing ? '拆解中...' : '🔨 开始拆解（第一层）'}
+                {isDeconstructing ? (
+                  <>
+                    <span className="inline-block animate-spin">🔄</span>
+                    <span>拆解中...</span>
+                  </>
+                ) : (
+                  '🔨 开始拆解（第一层）'
+                )}
               </button>
             )}
 
