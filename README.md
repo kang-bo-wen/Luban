@@ -1,3 +1,13 @@
+---
+title: Entropy Reverse - Deconstruction
+emoji: 🎮
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Entropy Reverse - Mode 1: Deconstruction
 
 一个交互式的"Mine & Craft"游戏，通过AI驱动的可视化方式，将现代物体拆解到其自然/元素根源。
