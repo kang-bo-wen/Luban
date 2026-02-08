@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useState, useRef } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 
 interface MatterNodeData {
@@ -13,8 +13,11 @@ interface MatterNodeData {
   hasKnowledgeCard: boolean;
   isLoadingKnowledge: boolean;
   level: number;
+  zoom?: number;
+  icon?: string;
   onExpand: () => void;
   onShowKnowledge: () => void;
+  onHover?: (isHovered: boolean) => void;
 }
 
 function MatterNode({ data }: NodeProps<MatterNodeData>) {
@@ -26,11 +29,33 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
     hasKnowledgeCard,
     isLoadingKnowledge,
     level,
+    zoom = 1,
+    icon,
     onExpand,
     onShowKnowledge,
+    onHover,
   } = data;
 
   const [isHovered, setIsHovered] = useState(false);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 显示悬浮窗
+  const handleMouseEnter = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    setIsHovered(true);
+    onHover?.(true);
+  };
+
+  // 延迟隐藏悬浮窗
+  const handleMouseLeave = () => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+      onHover?.(false);
+    }, 200); // 200ms延迟，给用户时间移动鼠标到悬浮窗
+  };
 
   // 根据层级计算节点大小
   const getNodeSize = () => {
@@ -42,11 +67,35 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
   const nodeSize = getNodeSize();
   const fontSize = Math.max(nodeSize / 8, 12); // 字体大小随节点缩放
 
+  // 根据层级获取节点颜色
+  const getNodeColor = () => {
+    if (isRawMaterial) {
+      return 'bg-gradient-to-br from-green-400 to-emerald-600 border-green-300';
+    }
+    if (isLoading) {
+      return 'bg-gradient-to-br from-gray-400 to-gray-600 border-gray-300 cursor-wait';
+    }
+
+    // 根据层级分配颜色（使用和谐的色系）
+    const levelColors = [
+      'bg-gradient-to-br from-blue-400 to-blue-600 border-blue-300',      // Level 0: 蓝色
+      'bg-gradient-to-br from-purple-400 to-purple-600 border-purple-300', // Level 1: 紫色
+      'bg-gradient-to-br from-pink-400 to-pink-600 border-pink-300',       // Level 2: 粉色
+      'bg-gradient-to-br from-orange-400 to-orange-600 border-orange-300', // Level 3: 橙色
+      'bg-gradient-to-br from-yellow-400 to-yellow-600 border-yellow-300', // Level 4: 黄色
+      'bg-gradient-to-br from-cyan-400 to-cyan-600 border-cyan-300',       // Level 5+: 青色
+    ];
+
+    // 如果层级超过数组长度，循环使用颜色
+    const colorIndex = level % levelColors.length;
+    return levelColors[colorIndex] + ' hover:scale-110';
+  };
+
   return (
     <div
-      className="relative"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      className={`relative ${isHovered ? 'z-[9999]' : 'z-10'}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* 连接点 */}
       <Handle
@@ -61,13 +110,7 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
           rounded-full flex items-center justify-center
           shadow-2xl backdrop-blur-sm border-4
           transition-all duration-300 cursor-pointer
-          ${
-            isRawMaterial
-              ? 'bg-gradient-to-br from-green-400 to-emerald-600 border-green-300'
-              : isLoading
-              ? 'bg-gradient-to-br from-gray-400 to-gray-600 border-gray-300 cursor-wait'
-              : 'bg-gradient-to-br from-blue-400 to-purple-600 border-blue-300 hover:scale-110'
-          }
+          ${getNodeColor()}
           ${isHovered ? 'z-50' : 'z-10'}
         `}
         style={{
@@ -76,33 +119,32 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
         }}
         onClick={() => !isRawMaterial && !isLoading && onExpand()}
       >
-        {/* 默认显示：图标和名字 */}
-        <div className="flex flex-col items-center justify-center p-2">
-          <span style={{ fontSize: `${fontSize * 2}px` }}>
+        {/* 默认显示：只显示图标 */}
+        <div className="flex items-center justify-center">
+          <span style={{ fontSize: `${nodeSize * 0.5}px` }}>
             {isLoading ? (
               <span className="inline-block animate-spin">🔄</span>
-            ) : isRawMaterial ? (
-              '🌿'
             ) : (
-              '📦'
+              icon || (isRawMaterial ? '🌿' : '📦')
             )}
           </span>
-          <div
-            className="text-white font-bold text-center mt-1 line-clamp-2"
-            style={{ fontSize: `${fontSize}px` }}
-          >
-            {name}
-          </div>
         </div>
       </div>
 
       {/* Hover 时显示的详细信息卡片 */}
       {isHovered && (
         <div
-          className="absolute left-full ml-4 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
-          style={{ minWidth: '250px' }}
+          className="absolute left-full ml-4 top-1/2 -translate-y-1/2 z-[9999]"
+          style={{
+            width: '320px',
+            maxHeight: '400px',
+            transform: `translateY(-50%) scale(${1 / zoom})`,
+            transformOrigin: 'left center',
+          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 shadow-2xl border-2 border-white/20 backdrop-blur-xl">
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 shadow-2xl border-2 border-white/20 backdrop-blur-xl overflow-y-auto max-h-full">
             {/* 名称 */}
             <div className="text-lg font-bold text-white mb-2">
               {name}

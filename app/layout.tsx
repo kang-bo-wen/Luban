@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Entropy Reverse - Deconstruction',
+  title: 'Break It Down - Deconstruction',
   description: 'Interactive Mine & Craft game - Deconstruction Phase',
 };
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -10,6 +10,9 @@ import ReactFlow, {
   Node,
   Edge,
   BackgroundVariant,
+  NodeChange,
+  applyNodeChanges,
+  OnMove,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -48,6 +51,58 @@ export default function GraphView({
 }: GraphViewProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [currentZoom, setCurrentZoom] = useState(1);
+
+  // 保存用户手动调整的节点位置
+  const userPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // 保存上一次的节点位置，用于计算拖拽偏移
+  const previousPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+
+  // 从 localStorage 恢复节点位置
+  useEffect(() => {
+    const savedPositions = localStorage.getItem('nodePositions');
+    if (savedPositions) {
+      try {
+        const positionsArray = JSON.parse(savedPositions);
+        userPositions.current = new Map(positionsArray);
+        console.log(`恢复了 ${positionsArray.length} 个节点的位置`);
+      } catch (error) {
+        console.error('恢复节点位置失败:', error);
+      }
+    }
+  }, []);
+
+  // 处理 viewport 变化（包括缩放）
+  const handleMove: OnMove = useCallback((event, viewport) => {
+    setCurrentZoom(viewport.zoom);
+  }, []);
+
+  // 查找节点的所有子孙节点
+  const findAllDescendants = useCallback((currentTree: TreeNode | null, targetId: string): string[] => {
+    if (!currentTree) return [];
+
+    const findNode = (node: TreeNode): TreeNode | null => {
+      if (node.id === targetId) return node;
+      for (const child of node.children) {
+        const found = findNode(child);
+        if (found) return found;
+      }
+      return null;
+    };
+
+    const collectDescendants = (node: TreeNode): string[] => {
+      const ids: string[] = [];
+      for (const child of node.children) {
+        ids.push(child.id);
+        ids.push(...collectDescendants(child));
+      }
+      return ids;
+    };
+
+    const targetNode = findNode(currentTree);
+    return targetNode ? collectDescendants(targetNode) : [];
+  }, []);
 
   // 查找节点的父节点名称
   const findParentName = useCallback((currentTree: TreeNode | null, targetId: string): string | undefined => {
@@ -87,34 +142,151 @@ export default function GraphView({
     const { nodes: layoutNodes, edges: layoutEdges } = calculateRadialLayout(tree, {
       centerX: 600,
       centerY: 400,
-      radiusStep: 280,
+      radiusStep: 180, // 减小层级间距，避免节点展开太远
       angleOffset: 0,
+      savedPositions: userPositions.current, // 传递保存的位置
     });
 
-    // 为每个节点添加交互回调
+    // 为每个节点添加交互回调，并应用用户保存的位置
     const enhancedNodes = layoutNodes.map((node) => {
       const treeNode = findNodeById(tree, node.id);
       if (!treeNode) return node;
 
+      // 如果用户手动调整过位置，使用保存的位置
+      const savedPosition = userPositions.current.get(node.id);
+      const position = savedPosition || node.position;
+
       return {
         ...node,
+        position,
         data: {
           ...node.data,
           isLoading: loadingNodeIds.has(node.id),
           hasKnowledgeCard: knowledgeCache.has(node.id),
           isLoadingKnowledge: loadingKnowledgeIds.has(node.id),
+          zoom: currentZoom,
           onExpand: () => {
             const parentName = findParentName(tree, node.id);
             onNodeExpand(node.id, treeNode.name, parentName);
           },
           onShowKnowledge: () => onShowKnowledge(treeNode),
+          onHover: (isHovered: boolean) => {
+            setHoveredNodeId(isHovered ? node.id : null);
+          },
         },
       };
     });
 
     setNodes(enhancedNodes);
     setEdges(layoutEdges);
-  }, [tree, loadingNodeIds, knowledgeCache, loadingKnowledgeIds, findNodeById, findParentName, onNodeExpand, onShowKnowledge]);
+  }, [tree, loadingNodeIds, knowledgeCache, loadingKnowledgeIds, currentZoom, findNodeById, findParentName, onNodeExpand, onShowKnowledge]);
+
+  // 根据悬停状态更新边的样式
+  useEffect(() => {
+    if (!hoveredNodeId) {
+      // 没有悬停节点时，恢复所有边的默认样式
+      setEdges((eds) =>
+        eds.map((edge) => ({
+          ...edge,
+          style: {
+            ...edge.style,
+            strokeWidth: 2,
+            opacity: 1,
+          },
+        }))
+      );
+    } else {
+      // 有悬停节点时，高亮相关的边
+      setEdges((eds) =>
+        eds.map((edge) => {
+          const isRelated = edge.source === hoveredNodeId;
+          return {
+            ...edge,
+            style: {
+              ...edge.style,
+              strokeWidth: isRelated ? 4 : 2,
+              opacity: isRelated ? 1 : 0.3,
+            },
+          };
+        })
+      );
+    }
+  }, [hoveredNodeId, setEdges]);
+
+  // 根据悬停状态更新节点的 zIndex
+  useEffect(() => {
+    setNodes((nds) =>
+      nds.map((node) => ({
+        ...node,
+        zIndex: node.id === hoveredNodeId ? 9999 : 1,
+      }))
+    );
+  }, [hoveredNodeId, setNodes]);
+
+  // 自定义节点变化处理，实现整体拖拽
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      changes.forEach((change) => {
+        if (change.type === 'position' && change.dragging && change.position) {
+          const nodeId = change.id;
+          const newPosition = change.position;
+
+          // 获取旧位置
+          const oldPosition = previousPositions.current.get(nodeId);
+
+          if (oldPosition) {
+            // 计算偏移量
+            const deltaX = newPosition.x - oldPosition.x;
+            const deltaY = newPosition.y - oldPosition.y;
+
+            // 获取所有子孙节点
+            const descendants = findAllDescendants(tree, nodeId);
+
+            // 更新当前节点和所有子孙节点的位置
+            setNodes((nds) =>
+              nds.map((node) => {
+                if (node.id === nodeId || descendants.includes(node.id)) {
+                  const updatedPosition = {
+                    x: node.position.x + deltaX,
+                    y: node.position.y + deltaY,
+                  };
+                  // 保存用户调整的位置
+                  userPositions.current.set(node.id, updatedPosition);
+                  previousPositions.current.set(node.id, updatedPosition);
+                  return {
+                    ...node,
+                    position: updatedPosition,
+                  };
+                }
+                return node;
+              })
+            );
+          } else {
+            // 首次拖拽，保存初始位置
+            previousPositions.current.set(nodeId, newPosition);
+            userPositions.current.set(nodeId, newPosition);
+          }
+        } else if (change.type === 'position' && !change.dragging) {
+          // 拖拽结束，更新所有节点的 previousPositions 并保存到 localStorage
+          setNodes((nds) => {
+            nds.forEach((node) => {
+              previousPositions.current.set(node.id, node.position);
+            });
+
+            // 保存到 localStorage
+            const positionsArray = Array.from(userPositions.current.entries());
+            localStorage.setItem('nodePositions', JSON.stringify(positionsArray));
+
+            return nds;
+          });
+        }
+      });
+
+      // 应用其他类型的变化
+      onNodesChange(changes);
+    },
+    [tree, findAllDescendants, onNodesChange]
+  );
 
   if (!tree) {
     return (
@@ -131,8 +303,9 @@ export default function GraphView({
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
+        onMove={handleMove}
         nodeTypes={nodeTypes}
         fitView
         minZoom={0.1}

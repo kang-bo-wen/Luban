@@ -61,7 +61,7 @@ async function deconstructItem(itemName, parentContext = null, depth = 0) {
 // 主测试函数
 async function runTest() {
   console.log('╔════════════════════════════════════════════════════════╗');
-  console.log('║     Entropy Reverse - 递归拆解测试                    ║');
+  console.log('║     Break It Down - 递归拆解测试                      ║');
   console.log('╚════════════════════════════════════════════════════════╝\n');
 
   const testItems = [

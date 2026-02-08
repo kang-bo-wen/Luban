@@ -1,5 +1,5 @@
 ---
-title: Entropy Reverse - Deconstruction
+title: Break It Down - Deconstruction
 emoji: 🎮
 colorFrom: blue
 colorTo: purple
@@ -14,7 +14,7 @@ tags:
   - Next.js
 ---
 
-# Entropy Reverse - Mode 1: Deconstruction
+# Break It Down - Mode 1: Deconstruction
 
 一个交互式的"Mine & Craft"游戏，通过AI驱动的可视化方式，将现代物体拆解到其自然/元素根源。
 

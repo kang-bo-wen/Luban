@@ -27,6 +27,7 @@ export interface DeconstructionResponse {
     name: string;
     description: string;
     is_raw_material: boolean; // TRUE if it exists in nature (e.g. Iron Ore, Water)
+    icon: string;             // Emoji icon representing this part
     percentage?: number;      // Estimated composition percentage
   }[];
 }
@@ -38,4 +39,5 @@ export interface IdentificationResponse {
   name: string;
   category: string;
   brief_description: string;
+  icon: string; // Emoji icon representing the identified object
 }

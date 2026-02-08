@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 
@@ -18,12 +18,14 @@ interface IdentificationResult {
   name: string;
   category: string;
   brief_description: string;
+  icon: string;
 }
 
 interface DeconstructionPart {
   name: string;
   description: string;
   is_raw_material: boolean;
+  icon: string;
 }
 
 interface DeconstructionResult {
@@ -36,6 +38,7 @@ interface TreeNode {
   name: string;
   description: string;
   isRawMaterial: boolean;
+  icon?: string;
   children: TreeNode[];
   isExpanded: boolean;
 }
@@ -65,6 +68,84 @@ export default function DeconstructionGame() {
   const [loadingKnowledge, setLoadingKnowledge] = useState(false); // 知识卡片加载状态
   const [knowledgeCache, setKnowledgeCache] = useState<Map<string, KnowledgeCardData>>(new Map()); // 知识卡片缓存
   const [loadingKnowledgeIds, setLoadingKnowledgeIds] = useState<Set<string>>(new Set()); // 跟踪正在加载知识卡片的节点
+  const [isFullscreen, setIsFullscreen] = useState(false); // 跟踪全屏状态
+
+  // 监听全屏状态变化
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // 从 localStorage 恢复状态
+  useEffect(() => {
+    const savedTree = localStorage.getItem('deconstructionTree');
+    const savedIdentification = localStorage.getItem('identificationResult');
+    const savedImagePreview = localStorage.getItem('imagePreview');
+    const savedKnowledgeCache = localStorage.getItem('knowledgeCache');
+
+    if (savedTree) {
+      try {
+        setDeconstructionTree(JSON.parse(savedTree));
+      } catch (error) {
+        console.error('恢复拆解树失败:', error);
+      }
+    }
+
+    if (savedIdentification) {
+      try {
+        setIdentificationResult(JSON.parse(savedIdentification));
+      } catch (error) {
+        console.error('恢复识别结果失败:', error);
+      }
+    }
+
+    if (savedImagePreview) {
+      setImagePreview(savedImagePreview);
+    }
+
+    if (savedKnowledgeCache) {
+      try {
+        const cacheArray = JSON.parse(savedKnowledgeCache);
+        setKnowledgeCache(new Map(cacheArray));
+        console.log(`从缓存恢复了 ${cacheArray.length} 个知识卡片`);
+      } catch (error) {
+        console.error('恢复知识卡片缓存失败:', error);
+      }
+    }
+  }, []);
+
+  // 保存拆解树到 localStorage
+  useEffect(() => {
+    if (deconstructionTree) {
+      localStorage.setItem('deconstructionTree', JSON.stringify(deconstructionTree));
+    }
+  }, [deconstructionTree]);
+
+  // 保存识别结果到 localStorage
+  useEffect(() => {
+    if (identificationResult) {
+      localStorage.setItem('identificationResult', JSON.stringify(identificationResult));
+    }
+  }, [identificationResult]);
+
+  // 保存图片预览到 localStorage
+  useEffect(() => {
+    if (imagePreview) {
+      localStorage.setItem('imagePreview', imagePreview);
+    }
+  }, [imagePreview]);
+
+  // 保存知识卡片缓存到 localStorage
+  useEffect(() => {
+    if (knowledgeCache.size > 0) {
+      const cacheArray = Array.from(knowledgeCache.entries());
+      localStorage.setItem('knowledgeCache', JSON.stringify(cacheArray));
+    }
+  }, [knowledgeCache]);
 
   // 高亮显示文本中的子节点名称
   const highlightChildrenNames = (text: string, childrenNames: string[]) => {
@@ -247,7 +328,8 @@ export default function DeconstructionGame() {
   const deconstructItem = async (
     itemName: string,
     parentDescription: string,
-    parentContext?: string
+    parentContext?: string,
+    parentIcon?: string
   ): Promise<TreeNode> => {
     setProcessingStatus(prev => prev + `\n🔍 正在拆解: ${itemName}`);
 
@@ -271,6 +353,7 @@ export default function DeconstructionGame() {
       name: part.name,
       description: part.description,
       isRawMaterial: part.is_raw_material,
+      icon: part.icon,
       children: [],
       isExpanded: false,
     }));
@@ -280,6 +363,7 @@ export default function DeconstructionGame() {
       name: itemName,
       description: parentDescription,
       isRawMaterial: false,
+      icon: parentIcon,
       children,
       isExpanded: false,
     };
@@ -298,7 +382,9 @@ export default function DeconstructionGame() {
     try {
       const tree = await deconstructItem(
         identificationResult.name,
-        identificationResult.brief_description
+        identificationResult.brief_description,
+        undefined,
+        identificationResult.icon
       );
       setDeconstructionTree(tree);
       setProcessingStatus(prev => prev + '\n\n✅ 第一层拆解完成！点击节点继续拆解');
@@ -337,6 +423,7 @@ export default function DeconstructionGame() {
 
     // 如果已经展开过，只是切换展开状态
     if (targetNode.children.length > 0) {
+      const isCurrentlyExpanded = targetNode.isExpanded;
       setDeconstructionTree(prevTree => {
         if (!prevTree) return null;
         const updateNode = (node: TreeNode): TreeNode => {
@@ -350,6 +437,11 @@ export default function DeconstructionGame() {
         };
         return updateNode(prevTree);
       });
+
+      // 如果是从折叠变为展开，且知识卡片未缓存，则尝试加载
+      if (!isCurrentlyExpanded && !knowledgeCache.has(nodeId)) {
+        fetchKnowledgeCard(targetNode, false);
+      }
       return;
     }
 
@@ -380,6 +472,7 @@ export default function DeconstructionGame() {
         name: part.name,
         description: part.description,
         isRawMaterial: part.is_raw_material,
+        icon: part.icon,
         children: [],
         isExpanded: false,
       }));
@@ -450,6 +543,10 @@ export default function DeconstructionGame() {
         setLoadingKnowledge(true);
       }
 
+      // 添加超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120秒超时
+
       try {
         const response = await fetch('/api/knowledge-card', {
           method: 'POST',
@@ -463,7 +560,10 @@ export default function DeconstructionGame() {
               isRawMaterial: c.isRawMaterial
             }))
           }),
+          signal: controller.signal
         });
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           throw new Error('获取知识卡片失败');
@@ -479,10 +579,18 @@ export default function DeconstructionGame() {
         }
 
         console.log(`知识卡片 ${node.name} 加载完成并已缓存`);
-      } catch (error) {
-        console.error('知识卡片错误:', error);
-        if (showModal) {
-          alert('获取知识卡片失败，请重试');
+      } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          console.error('知识卡片请求超时 (120s):', node.name);
+          if (showModal) {
+            alert('获取知识卡片超时，请重试');
+          }
+        } else {
+          console.error('知识卡片错误:', error);
+          if (showModal) {
+            alert('获取知识卡片失败，请重试');
+          }
         }
       } finally {
         // 从加载集合中移除
@@ -586,16 +694,41 @@ export default function DeconstructionGame() {
       <div className="max-w-7xl mx-auto">
         {/* 标题区域 - 更现代化的设计 */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-            🔬 Entropy Reverse
-          </h1>
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              🔬 Break It Down
+            </h1>
+            {(deconstructionTree || identificationResult) && (
+              <button
+                onClick={() => {
+                  if (confirm('确定要清除所有数据并重新开始吗？')) {
+                    localStorage.removeItem('deconstructionTree');
+                    localStorage.removeItem('identificationResult');
+                    localStorage.removeItem('imagePreview');
+                    localStorage.removeItem('knowledgeCache');
+                    localStorage.removeItem('nodePositions');
+                    setDeconstructionTree(null);
+                    setIdentificationResult(null);
+                    setImagePreview(null);
+                    setImageFile(null);
+                    setProcessingStatus('');
+                    setKnowledgeCache(new Map());
+                  }
+                }}
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 rounded-lg text-red-300 text-sm font-semibold transition-all"
+                title="清除所有数据并重新开始"
+              >
+                🔄 重新开始
+              </button>
+            )}
+          </div>
           <p className="text-xl text-gray-300">
             物体拆解游戏 - 探索万物的本质
           </p>
         </div>
 
         {/* 知识卡片弹窗 */}
-        {knowledgeCard && (
+        {knowledgeCard && !isFullscreen && (
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             onClick={() => setKnowledgeCard(null)}
@@ -830,7 +963,7 @@ export default function DeconstructionGame() {
                 💡 <strong>交互提示：</strong>点击蓝色节点继续拆解，绿色节点是自然材料（拆解终点）。使用鼠标滚轮缩放，拖拽画布移动视图。
               </div>
             </div>
-            <div id="graph-container" className="bg-black/50 rounded-xl">
+            <div id="graph-container" className="bg-black/50 rounded-xl relative">
               <GraphView
                 tree={deconstructionTree}
                 loadingNodeIds={loadingNodeIds}
@@ -839,6 +972,115 @@ export default function DeconstructionGame() {
                 onNodeExpand={handleNodeClick}
                 onShowKnowledge={(node) => fetchKnowledgeCard(node, true)}
               />
+
+              {/* 全屏模式下的知识卡片弹窗 */}
+              {knowledgeCard && isFullscreen && (
+                <div
+                  className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                  onClick={() => setKnowledgeCard(null)}
+                >
+                  <div
+                    className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 max-w-2xl w-full border-2 border-yellow-500/50 shadow-2xl max-h-[80vh] overflow-y-auto"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-2xl font-bold flex items-center gap-2">
+                        <span>💡</span>
+                        <span>知识卡片：{knowledgeCard.node.name}</span>
+                      </h3>
+                      <button
+                        onClick={() => setKnowledgeCard(null)}
+                        className="text-gray-400 hover:text-white text-2xl"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {loadingKnowledge ? (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="flex flex-col items-center gap-3">
+                          <span className="text-4xl animate-spin">🔄</span>
+                          <span className="text-gray-400">正在生成知识卡片...</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {/* 标题和文档编号 */}
+                        <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-lg p-4 border border-yellow-500/30">
+                          <div className="text-xl font-bold text-yellow-300">{knowledgeCard.data.title}</div>
+                          <div className="text-sm text-gray-400 mt-1">文档编号: {knowledgeCard.data.doc_number}</div>
+                        </div>
+
+                        {/* 流程步骤 */}
+                        <div className="space-y-4">
+                          {knowledgeCard.data.steps.map((step, idx) => (
+                            <div key={idx} className="relative">
+                              {/* 步骤卡片 */}
+                              <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-lg p-4 border-2 border-blue-500/50 hover:border-blue-400/70 transition-all">
+                                <div className="flex items-start gap-3">
+                                  {/* 步骤编号 */}
+                                  <div className="flex-shrink-0 w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center font-bold text-lg">
+                                    {step.step_number}
+                                  </div>
+
+                                  <div className="flex-1">
+                                    {/* 步骤标题 */}
+                                    <div className="text-lg font-bold text-blue-300 mb-2">
+                                      {step.action_title}
+                                    </div>
+
+                                    {/* 步骤描述 */}
+                                    <div className="text-gray-300 text-sm mb-3">
+                                      {highlightChildrenNames(
+                                        step.description,
+                                        knowledgeCard.node.children.map(c => c.name)
+                                      )}
+                                    </div>
+
+                                    {/* 参数列表 */}
+                                    {step.parameters.length > 0 && (
+                                      <div className="flex flex-wrap gap-2">
+                                        {step.parameters.map((param, pidx) => (
+                                          <div key={pidx} className="bg-black/30 rounded px-3 py-1 text-xs border border-gray-600">
+                                            <span className="text-gray-400">{param.label}:</span>
+                                            <span className="text-white ml-1 font-semibold">{param.value}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* 连接箭头 */}
+                              {idx < knowledgeCard.data.steps.length - 1 && (
+                                <div className="flex justify-center my-2">
+                                  <div className="text-3xl text-blue-400">↓</div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* 组成部分总结 */}
+                        <div className="bg-blue-500/10 rounded-lg p-4 border border-blue-500/30">
+                          <div className="text-sm text-blue-300 font-semibold mb-2">
+                            📦 使用的组成部分
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {knowledgeCard.node.children.map((child, idx) => (
+                              <div key={idx} className="bg-black/30 rounded-full px-3 py-1 text-sm border border-gray-600 flex items-center gap-1">
+                                <span className="text-white">{child.name}</span>
+                                {child.isRawMaterial && <span className="text-green-400 text-xs">🌿</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
