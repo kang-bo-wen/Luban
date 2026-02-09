@@ -170,12 +170,16 @@ export default function DeconstructionGame() {
     }
   }, [knowledgeCache]);
 
-  // 保存 prompt 设置到 localStorage
+  // 保存 prompt 设置到 localStorage（防抖优化）
   useEffect(() => {
-    localStorage.setItem('humorLevel', String(humorLevel));
-    localStorage.setItem('professionalLevel', String(professionalLevel));
-    localStorage.setItem('promptMode', promptMode);
-    if (customPrompt) localStorage.setItem('customPrompt', customPrompt);
+    const timer = setTimeout(() => {
+      localStorage.setItem('humorLevel', String(humorLevel));
+      localStorage.setItem('professionalLevel', String(professionalLevel));
+      localStorage.setItem('promptMode', promptMode);
+      if (customPrompt) localStorage.setItem('customPrompt', customPrompt);
+    }, 500); // 500ms 防抖
+
+    return () => clearTimeout(timer);
   }, [humorLevel, professionalLevel, promptMode, customPrompt]);
 
   // 高亮显示文本中的子节点名称

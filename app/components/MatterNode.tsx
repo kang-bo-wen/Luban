@@ -166,6 +166,7 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
             <img
               src={imageUrl}
               alt={name}
+              loading="lazy"
               className="w-full h-full object-cover sketch-effect"
               onError={() => setImageError(true)}
               style={{
