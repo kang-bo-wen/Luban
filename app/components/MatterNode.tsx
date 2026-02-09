@@ -15,6 +15,7 @@ interface MatterNodeData {
   level: number;
   zoom?: number;
   icon?: string;
+  imageUrl?: string;
   onExpand: () => void;
   onShowKnowledge: () => void;
   onHover?: (isHovered: boolean) => void;
@@ -31,12 +32,14 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
     level,
     zoom = 1,
     icon,
+    imageUrl,
     onExpand,
     onShowKnowledge,
     onHover,
   } = data;
 
   const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 显示悬浮窗
@@ -119,15 +122,27 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
         }}
         onClick={() => !isRawMaterial && !isLoading && onExpand()}
       >
-        {/* 默认显示：只显示图标 */}
-        <div className="flex items-center justify-center">
-          <span style={{ fontSize: `${nodeSize * 0.5}px` }}>
-            {isLoading ? (
-              <span className="inline-block animate-spin">🔄</span>
-            ) : (
-              icon || (isRawMaterial ? '🌿' : '📦')
-            )}
-          </span>
+        {/* 默认显示：图片或图标 */}
+        <div className="flex items-center justify-center w-full h-full overflow-hidden rounded-full">
+          {isLoading ? (
+            <span className="inline-block animate-spin" style={{ fontSize: `${nodeSize * 0.5}px` }}>
+              🔄
+            </span>
+          ) : imageUrl && !imageError ? (
+            <img
+              src={imageUrl}
+              alt={name}
+              className="w-full h-full object-cover sketch-effect"
+              onError={() => setImageError(true)}
+              style={{
+                filter: 'grayscale(100%) contrast(150%) brightness(110%)',
+              }}
+            />
+          ) : (
+            <span style={{ fontSize: `${nodeSize * 0.5}px` }}>
+              {icon || (isRawMaterial ? '🌿' : '📦')}
+            </span>
+          )}
         </div>
       </div>
 

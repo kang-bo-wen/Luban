@@ -81,7 +81,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(deconstructionData);
+    // Search for images on Wikimedia Commons for each part
+    const partsWithImages = await Promise.all(
+      deconstructionData.parts.map(async (part) => {
+        if (!part.searchTerm) {
+          return part;
+        }
+
+        try {
+          const wikimediaResponse = await fetch(`${request.nextUrl.origin}/api/wikimedia-search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ searchTerm: part.searchTerm })
+          });
+
+          if (wikimediaResponse.ok) {
+            const wikimediaData = await wikimediaResponse.json();
+            const imageUrl = wikimediaData.thumbnail || wikimediaData.imageUrl;
+            if (imageUrl) {
+              console.log(`Found Wikimedia image for "${part.name}" (${part.searchTerm}): ${imageUrl}`);
+              return { ...part, imageUrl };
+            }
+          } else {
+            console.warn(`Wikimedia search failed for "${part.name}" (${part.searchTerm})`);
+          }
+        } catch (wikimediaError) {
+          console.error(`Error searching Wikimedia for "${part.name}":`, wikimediaError);
+        }
+
+        return part;
+      })
+    );
+
+    return NextResponse.json({
+      ...deconstructionData,
+      parts: partsWithImages
+    });
   } catch (error) {
     console.error('Error in deconstruct API:', error);
     return NextResponse.json(

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(conda env list:*)",
+      "Bash(where:*)",
+      "Bash(pip install:*)",
+      "Bash(code --locate-extension:*)"
+    ]
+  }
+}

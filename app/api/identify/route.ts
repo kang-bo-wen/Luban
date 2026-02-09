@@ -52,7 +52,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(identificationData);
+    // Search for image on Wikimedia Commons if searchTerm is provided
+    let imageUrl: string | undefined;
+    if (identificationData.searchTerm) {
+      try {
+        const wikimediaResponse = await fetch(`${request.nextUrl.origin}/api/wikimedia-search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ searchTerm: identificationData.searchTerm })
+        });
+
+        if (wikimediaResponse.ok) {
+          const wikimediaData = await wikimediaResponse.json();
+          imageUrl = wikimediaData.thumbnail || wikimediaData.imageUrl;
+          console.log(`Found Wikimedia image for "${identificationData.searchTerm}": ${imageUrl}`);
+        } else {
+          console.warn(`Wikimedia search failed for "${identificationData.searchTerm}"`);
+        }
+      } catch (wikimediaError) {
+        console.error('Error searching Wikimedia:', wikimediaError);
+        // Continue without image - will fall back to emoji icon
+      }
+    }
+
+    return NextResponse.json({
+      ...identificationData,
+      imageUrl
+    });
   } catch (error) {
     console.error('Error in identify API:', error);
     return NextResponse.json(

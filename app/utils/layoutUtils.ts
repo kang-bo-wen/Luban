@@ -6,6 +6,7 @@ interface TreeNode {
   description: string;
   isRawMaterial: boolean;
   icon?: string;
+  imageUrl?: string;
   children: TreeNode[];
   isExpanded: boolean;
 }
@@ -98,6 +99,7 @@ export function calculateRadialLayout(
         hasChildren: node.children.length > 0,
         level: level, // 添加层级信息
         icon: node.icon,
+        imageUrl: node.imageUrl,
       },
     });
 
@@ -176,6 +178,7 @@ export function calculateForceLayout(
         isRawMaterial: node.isRawMaterial,
         isExpanded: node.isExpanded,
         hasChildren: node.children.length > 0,
+        imageUrl: node.imageUrl,
       },
     });
 

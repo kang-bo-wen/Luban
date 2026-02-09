@@ -242,12 +242,14 @@ export const IDENTIFICATION_PROMPT = `识别图片中的主要物体，返回JSO
   "name": "具体名称（如'iPhone 15 Pro'而非'手机'）",
   "category": "类别（如'电子产品'、'交通工具'、'家具'）",
   "brief_description": "客观描述（2-3句话，包含材料、功能）",
-  "icon": "一个最能代表该物体的emoji图标"
+  "icon": "一个最能代表该物体的emoji图标",
+  "searchTerm": "English search term for Wikimedia Commons (e.g., 'iPhone smartphone', 'aluminum metal', 'silicon chip')"
 }
 
 要求：
 1. 名称要准确、具体、客观，使用专业中文
 2. **图标必须精准匹配物体特征，一看就知道是什么**
+3. **searchTerm 必须是英文，简洁准确，适合在 Wikimedia Commons 搜索图片**
 
 图标选择指南：
 - 电子产品：📱(手机)、💻(笔记本)、🖥️(台式机)、⌚(手表)、📷(相机)、🎧(耳机)、⌨️(键盘)、🖱️(鼠标)
@@ -347,10 +349,13 @@ Output Format: JSON only (Chinese names and descriptions).
       "name": "组件或材料名称（中文）",
       "description": "功能或特性（中文）",
       "is_raw_material": true or false,
-      "icon": "一个最能代表该组件的emoji图标（如：🚀火箭、💻电脑、🔋电池、⚙️齿轮、🔌电线等）"
+      "icon": "一个最能代表该组件的emoji图标（如：🚀火箭、💻电脑、🔋电池、⚙️齿轮、🔌电线等）",
+      "searchTerm": "English search term for Wikimedia Commons (e.g., 'lithium battery', 'aluminum alloy', 'silicon wafer', 'iron ore')"
     }
   ]
 }
+
+**IMPORTANT: searchTerm must be in English and suitable for searching professional/technical images on Wikimedia Commons.**
 
 ICON SELECTION GUIDELINES (CRITICAL - 图标必须精准匹配):
 **核心原则：图标必须精准、具体、一目了然，避免模糊抽象**

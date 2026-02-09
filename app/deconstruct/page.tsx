@@ -19,6 +19,8 @@ interface IdentificationResult {
   category: string;
   brief_description: string;
   icon: string;
+  imageUrl?: string;
+  searchTerm?: string;
 }
 
 interface DeconstructionPart {
@@ -26,6 +28,8 @@ interface DeconstructionPart {
   description: string;
   is_raw_material: boolean;
   icon: string;
+  imageUrl?: string;
+  searchTerm?: string;
 }
 
 interface DeconstructionResult {
@@ -39,6 +43,7 @@ interface TreeNode {
   description: string;
   isRawMaterial: boolean;
   icon?: string;
+  imageUrl?: string;
   children: TreeNode[];
   isExpanded: boolean;
 }
@@ -329,7 +334,8 @@ export default function DeconstructionGame() {
     itemName: string,
     parentDescription: string,
     parentContext?: string,
-    parentIcon?: string
+    parentIcon?: string,
+    parentImageUrl?: string
   ): Promise<TreeNode> => {
     setProcessingStatus(prev => prev + `\n🔍 正在拆解: ${itemName}`);
 
@@ -354,6 +360,7 @@ export default function DeconstructionGame() {
       description: part.description,
       isRawMaterial: part.is_raw_material,
       icon: part.icon,
+      imageUrl: part.imageUrl,
       children: [],
       isExpanded: false,
     }));
@@ -364,6 +371,7 @@ export default function DeconstructionGame() {
       description: parentDescription,
       isRawMaterial: false,
       icon: parentIcon,
+      imageUrl: parentImageUrl,
       children,
       isExpanded: false,
     };
@@ -384,7 +392,8 @@ export default function DeconstructionGame() {
         identificationResult.name,
         identificationResult.brief_description,
         undefined,
-        identificationResult.icon
+        identificationResult.icon,
+        identificationResult.imageUrl
       );
       setDeconstructionTree(tree);
       setProcessingStatus(prev => prev + '\n\n✅ 第一层拆解完成！点击节点继续拆解');
@@ -473,6 +482,7 @@ export default function DeconstructionGame() {
         description: part.description,
         isRawMaterial: part.is_raw_material,
         icon: part.icon,
+        imageUrl: part.imageUrl,
         children: [],
         isExpanded: false,
       }));

@@ -16,6 +16,8 @@ export interface MatterNode {
 
   // Visual meta
   icon?: string;        // Optional emoji or icon name
+  imageUrl?: string;    // Optional Wikimedia Commons image URL
+  searchTerm?: string;  // Search term used to find the image
 }
 
 /**
@@ -28,6 +30,7 @@ export interface DeconstructionResponse {
     description: string;
     is_raw_material: boolean; // TRUE if it exists in nature (e.g. Iron Ore, Water)
     icon: string;             // Emoji icon representing this part
+    searchTerm?: string;      // English search term for Wikimedia Commons
     percentage?: number;      // Estimated composition percentage
   }[];
 }
@@ -40,4 +43,5 @@ export interface IdentificationResponse {
   category: string;
   brief_description: string;
   icon: string; // Emoji icon representing the identified object
+  searchTerm?: string; // English search term for Wikimedia Commons
 }
