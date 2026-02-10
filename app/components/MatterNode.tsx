@@ -217,9 +217,6 @@ function MatterNode({ data }: NodeProps<MatterNodeData>) {
               loading="lazy"
               className="w-full h-full object-cover sketch-effect"
               onError={() => setImageError(true)}
-              style={{
-                filter: 'grayscale(100%) contrast(150%) brightness(110%)',
-              }}
             />
           ) : (
             <span style={{ fontSize: `${nodeSize * 0.5}px` }}>

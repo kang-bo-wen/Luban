@@ -9,15 +9,15 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   try {
     console.log('=== Environment Check Endpoint Called ===');
-    console.log('PEXELS_API_KEY exists:', !!process.env.PEXELS_API_KEY);
+    console.log('PIXABAY_API_KEY exists:', !!process.env.PIXABAY_API_KEY);
     console.log('All env keys:', Object.keys(process.env).filter(k =>
-      k.includes('PEXELS') || k.includes('AI_') || k.includes('DASHSCOPE')
+      k.includes('PIXABAY') || k.includes('AI_') || k.includes('DASHSCOPE')
     ));
 
     const envStatus = {
-      PEXELS_API_KEY: !!process.env.PEXELS_API_KEY,
-      PEXELS_API_KEY_LENGTH: process.env.PEXELS_API_KEY?.length || 0,
-      PEXELS_API_KEY_PREFIX: process.env.PEXELS_API_KEY?.substring(0, 8) || 'NOT_SET',
+      PIXABAY_API_KEY: !!process.env.PIXABAY_API_KEY,
+      PIXABAY_API_KEY_LENGTH: process.env.PIXABAY_API_KEY?.length || 0,
+      PIXABAY_API_KEY_PREFIX: process.env.PIXABAY_API_KEY?.substring(0, 8) || 'NOT_SET',
 
       AI_BASE_URL: !!process.env.AI_BASE_URL,
       AI_API_KEY: !!process.env.AI_API_KEY,
