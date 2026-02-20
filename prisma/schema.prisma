@@ -43,6 +43,9 @@ model DeconstructionSession {
   // Store knowledge card cache
   knowledgeCache    Json?
 
+  // Store node positions for graph view
+  nodePositions     Json?
+
   // Metadata
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

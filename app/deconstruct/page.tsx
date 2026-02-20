@@ -213,6 +213,10 @@ function DeconstructionGameContent() {
     // 自动创建新会话
     const createSession = async () => {
       try {
+        // 读取节点位置
+        const savedPositions = localStorage.getItem('nodePositions');
+        const nodePositions = savedPositions ? JSON.parse(savedPositions) : undefined;
+
         const response = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -228,6 +232,7 @@ function DeconstructionGameContent() {
             knowledgeCache: knowledgeCache.size > 0
               ? Array.from(knowledgeCache.entries())
               : undefined,
+            nodePositions,
             identificationResult: identificationResult,
             rootObjectName: identificationResult.name,
             rootObjectIcon: identificationResult.icon,
@@ -316,6 +321,16 @@ function DeconstructionGameContent() {
           }
         }
 
+        // 恢复节点位置
+        if (session.nodePositions) {
+          try {
+            localStorage.setItem('nodePositions', JSON.stringify(session.nodePositions));
+            console.log('✅ 节点位置已恢复');
+          } catch (error) {
+            console.error('恢复节点位置失败:', error);
+          }
+        }
+
         setCurrentSessionId(sessionId);
         setIsLoadingSession(false); // 加载完成
         return; // 从缓存加载完成，直接返回
@@ -384,6 +399,16 @@ function DeconstructionGameContent() {
         console.log('⚠️ 此会话没有保存知识卡片缓存');
       }
 
+      // 恢复节点位置
+      if (session.nodePositions) {
+        try {
+          localStorage.setItem('nodePositions', JSON.stringify(session.nodePositions));
+          console.log('✅ 节点位置已恢复');
+        } catch (error) {
+          console.error('恢复节点位置失败:', error);
+        }
+      }
+
       setCurrentSessionId(sessionId);
     } catch (error) {
       console.error('❌ 加载会话错误:', error);
@@ -405,6 +430,10 @@ function DeconstructionGameContent() {
         ? `/api/sessions/${currentSessionId}`
         : '/api/sessions';
 
+      // 读取节点位置
+      const savedPositions = localStorage.getItem('nodePositions');
+      const nodePositions = savedPositions ? JSON.parse(savedPositions) : undefined;
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -416,11 +445,13 @@ function DeconstructionGameContent() {
           promptSettings: {
             humorLevel,
             professionalLevel,
+            promptMode,
             customPrompt: promptMode === 'advanced' ? customPrompt : undefined
           },
           knowledgeCache: knowledgeCache.size > 0
             ? Array.from(knowledgeCache.entries())
             : undefined,
+          nodePositions,
           identificationResult: identificationResult,
           rootObjectName: identificationResult.name,
           rootObjectIcon: identificationResult.icon,

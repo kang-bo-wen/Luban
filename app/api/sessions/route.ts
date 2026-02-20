@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, treeData, promptSettings, knowledgeCache, identificationResult, rootObjectName, rootObjectIcon, rootObjectImage } = body
+    const { title, treeData, promptSettings, knowledgeCache, nodePositions, identificationResult, rootObjectName, rootObjectIcon, rootObjectImage } = body
 
     // Validate required fields
     if (!title || !treeData || !rootObjectName) {
@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
         treeData,
         promptSettings: promptSettings || null,
         knowledgeCache: knowledgeCache || null,
+        nodePositions: nodePositions || null,
         identificationResult: identificationResult || null
       }
     })

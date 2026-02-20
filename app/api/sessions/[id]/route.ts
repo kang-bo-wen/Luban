@@ -60,7 +60,7 @@ export async function PUT(
 
     const { id } = await params
     const body = await request.json()
-    const { title, treeData, promptSettings, knowledgeCache, identificationResult } = body
+    const { title, treeData, promptSettings, knowledgeCache, nodePositions, identificationResult } = body
 
     // Check if session exists and user owns it
     const existingSession = await prisma.deconstructionSession.findUnique({
@@ -83,6 +83,7 @@ export async function PUT(
         ...(treeData && { treeData }),
         ...(promptSettings !== undefined && { promptSettings }),
         ...(knowledgeCache !== undefined && { knowledgeCache }),
+        ...(nodePositions !== undefined && { nodePositions }),
         ...(identificationResult !== undefined && { identificationResult }),
         updatedAt: new Date()
       }
