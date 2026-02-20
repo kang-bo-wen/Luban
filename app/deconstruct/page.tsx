@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
@@ -62,7 +62,7 @@ interface KnowledgeCardData {
   }[];
 }
 
-export default function DeconstructionGame() {
+function DeconstructionGameContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1541,5 +1541,21 @@ export default function DeconstructionGame() {
         </div>
       )}
     </div>
+  );
+}
+
+// 使用 Suspense 包裹组件以支持 useSearchParams
+export default function DeconstructionGame() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mb-4"></div>
+          <p className="text-gray-400">加载中...</p>
+        </div>
+      </div>
+    }>
+      <DeconstructionGameContent />
+    </Suspense>
   );
 }
