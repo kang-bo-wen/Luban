@@ -29,13 +29,6 @@ async function searchPixabay(searchTerm: string, limit: number = 1): Promise<Pix
       return [];
     }
 
-    console.log('🔍 Attempting to search Pixabay for:', searchTerm);
-    console.log('📝 API Key length:', apiKey.length);
-    console.log('📝 API Key first 10 chars:', apiKey.substring(0, 10));
-    console.log('📝 API Key last 10 chars:', apiKey.substring(apiKey.length - 10));
-    console.log('📝 API Key has newlines:', apiKey.includes('\n'));
-    console.log('📝 API Key has carriage returns:', apiKey.includes('\r'));
-
     // Pixabay API endpoint
     const apiUrl = 'https://pixabay.com/api/';
 
@@ -52,35 +45,25 @@ async function searchPixabay(searchTerm: string, limit: number = 1): Promise<Pix
     });
 
     const fullUrl = `${apiUrl}?${params}`;
-    console.log('🌐 Fetching from:', fullUrl);
 
     const response = await fetch(fullUrl);
 
-    console.log('✅ Response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Pixabay API error response:', errorText);
-      throw new Error(`Pixabay API error: ${response.status} - ${errorText}`);
+      console.error('❌ Pixabay API error:', response.status, errorText);
+      throw new Error(`Pixabay API error: ${response.status}`);
     }
 
     const data = await response.json();
 
     if (!data.hits || !Array.isArray(data.hits)) {
-      console.log('⚠️ No photos found in response');
       return [];
     }
 
-    console.log(`✅ Found ${data.hits.length} photos`);
     // Return only the requested number of results
     return (data.hits as PixabaySearchResult[]).slice(0, limit);
   } catch (error) {
     console.error('❌ Pixabay search error:', error);
-    console.error('Error details:', {
-      name: error instanceof Error ? error.name : 'Unknown',
-      message: error instanceof Error ? error.message : String(error),
-      cause: error instanceof Error ? (error as any).cause : undefined
-    });
     return [];
   }
 }
