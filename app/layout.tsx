@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { Providers } from './providers';
+import Sidebar from './components/Sidebar';
 
 export const metadata: Metadata = {
   title: 'Break It Down - Deconstruction',
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <Providers>
+          <Sidebar />
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }

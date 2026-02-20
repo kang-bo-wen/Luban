@@ -1,5 +1,7 @@
 // app/api/deconstruct/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { callTextAPI, getDeconstructionPrompt, generateCustomDeconstructionPrompt } from '@/lib/ai-client';
 import { DeconstructionResponse } from '@/types/graph';
 
@@ -35,6 +37,15 @@ async function retryWithBackoff<T>(
 }
 
 export async function POST(request: NextRequest) {
+  // 检查认证
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { itemName, parentContext, promptOptions } = body;

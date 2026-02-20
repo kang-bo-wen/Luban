@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // 动态导入 GraphView 以避免 SSR 问题
 const GraphView = dynamic(() => import('../components/GraphView'), {
@@ -61,6 +63,10 @@ interface KnowledgeCardData {
 }
 
 export default function DeconstructionGame() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isIdentifying, setIsIdentifying] = useState(false);
@@ -73,6 +79,12 @@ export default function DeconstructionGame() {
   const [knowledgeCache, setKnowledgeCache] = useState<Map<string, KnowledgeCardData>>(new Map()); // 知识卡片缓存
   const [loadingKnowledgeIds, setLoadingKnowledgeIds] = useState<Set<string>>(new Set()); // 跟踪正在加载知识卡片的节点
   const [isFullscreen, setIsFullscreen] = useState(false); // 跟踪全屏状态
+
+  // Session management state
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [sessionCache, setSessionCache] = useState<Map<string, any>>(new Map()); // 会话缓存
+  const [isLoadingSession, setIsLoadingSession] = useState(false); // 会话加载状态
 
   // Prompt 自定义相关状态
   const [showPromptSettings, setShowPromptSettings] = useState(false); // 是否显示设置面板
@@ -93,6 +105,12 @@ export default function DeconstructionGame() {
 
   // 从 localStorage 恢复状态
   useEffect(() => {
+    // 如果 URL 中有 sessionId，跳过 localStorage 恢复，等待从数据库加载
+    const sessionId = searchParams.get('sessionId');
+    if (sessionId) {
+      return;
+    }
+
     const savedTree = localStorage.getItem('deconstructionTree');
     const savedIdentification = localStorage.getItem('identificationResult');
     const savedImagePreview = localStorage.getItem('imagePreview');
@@ -137,7 +155,7 @@ export default function DeconstructionGame() {
     if (savedProfessional) setProfessionalLevel(Number(savedProfessional));
     if (savedMode) setPromptMode(savedMode as 'simple' | 'advanced');
     if (savedCustom) setCustomPrompt(savedCustom);
-  }, []);
+  }, [searchParams]);
 
   // 保存拆解树到 localStorage
   useEffect(() => {
@@ -179,6 +197,260 @@ export default function DeconstructionGame() {
 
     return () => clearTimeout(timer);
   }, [humorLevel, professionalLevel, promptMode, customPrompt]);
+
+  // 检查 URL 中的 sessionId 并加载会话
+  useEffect(() => {
+    const sessionId = searchParams.get('sessionId');
+    if (sessionId && status === 'authenticated') {
+      loadSession(sessionId);
+    }
+  }, [searchParams, status]);
+
+  // 自动创建会话（当识别结果和拆解树都存在时）
+  useEffect(() => {
+    if (!identificationResult || !deconstructionTree || currentSessionId || status !== 'authenticated') return;
+
+    // 自动创建新会话
+    const createSession = async () => {
+      try {
+        const response = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `${identificationResult.name} 拆解`,
+            treeData: deconstructionTree,
+            promptSettings: {
+              humorLevel,
+              professionalLevel,
+              promptMode,
+              customPrompt: promptMode === 'advanced' ? customPrompt : undefined
+            },
+            knowledgeCache: knowledgeCache.size > 0
+              ? Array.from(knowledgeCache.entries())
+              : undefined,
+            identificationResult: identificationResult,
+            rootObjectName: identificationResult.name,
+            rootObjectIcon: identificationResult.icon,
+            rootObjectImage: imagePreview
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentSessionId(data.session.id);
+          router.push(`/deconstruct?sessionId=${data.session.id}`);
+        }
+      } catch (error) {
+        console.error('自动创建会话失败:', error);
+      }
+    };
+
+    createSession();
+  }, [identificationResult, deconstructionTree, currentSessionId, status]);
+
+  // 自动保存会话（每次拆解树更新后立即保存）
+  useEffect(() => {
+    if (!currentSessionId || !deconstructionTree || status !== 'authenticated') return;
+
+    // 清除当前会话的缓存（因为内容已更改）
+    if (sessionCache.has(currentSessionId)) {
+      setSessionCache(prev => {
+        const newCache = new Map(prev);
+        newCache.delete(currentSessionId);
+        return newCache;
+      });
+    }
+
+    // 使用较短的防抖时间，确保用户操作后快速保存
+    const timer = setTimeout(() => {
+      saveSessionToDatabase(false);
+    }, 2000); // 2秒防抖，确保快速保存
+
+    return () => clearTimeout(timer);
+  }, [deconstructionTree, knowledgeCache, currentSessionId, status]);
+
+  // 从数据库加载会话
+  const loadSession = async (sessionId: string) => {
+    setIsLoadingSession(true); // 开始加载
+    try {
+      // 检查缓存
+      if (sessionCache.has(sessionId)) {
+        console.log('✨ 从缓存加载会话:', sessionId);
+        const session = sessionCache.get(sessionId);
+
+        // 恢复状态（从缓存）
+        setDeconstructionTree(session.treeData);
+
+        if (session.identificationResult) {
+          setIdentificationResult(session.identificationResult);
+        } else {
+          setIdentificationResult({
+            name: session.rootObjectName,
+            category: '',
+            brief_description: '',
+            icon: session.rootObjectIcon || '',
+            imageUrl: session.rootObjectImage
+          });
+        }
+
+        setImagePreview(session.rootObjectImage);
+
+        if (session.promptSettings) {
+          setHumorLevel(session.promptSettings.humorLevel || 50);
+          setProfessionalLevel(session.promptSettings.professionalLevel || 70);
+          if (session.promptSettings.promptMode) {
+            setPromptMode(session.promptSettings.promptMode);
+          }
+          if (session.promptSettings.customPrompt) {
+            setCustomPrompt(session.promptSettings.customPrompt);
+          }
+        }
+
+        if (session.knowledgeCache) {
+          try {
+            const cacheArray = session.knowledgeCache as [string, KnowledgeCardData][];
+            const restoredCache = new Map<string, KnowledgeCardData>(cacheArray);
+            setKnowledgeCache(restoredCache);
+          } catch (error) {
+            console.error('恢复知识卡片缓存失败:', error);
+          }
+        }
+
+        setCurrentSessionId(sessionId);
+        setIsLoadingSession(false); // 加载完成
+        return; // 从缓存加载完成，直接返回
+      }
+
+      // 缓存中没有，从 API 加载
+      console.log('🌐 从服务器加载会话:', sessionId);
+      const response = await fetch(`/api/sessions/${sessionId}`);
+
+      if (!response.ok) {
+        throw new Error('加载会话失败');
+      }
+
+      const data = await response.json();
+
+      // 提取 session 对象
+      const session = data.session || data;
+
+      // 保存到缓存
+      setSessionCache(prev => new Map(prev).set(sessionId, session));
+
+      // 恢复状态
+      setDeconstructionTree(session.treeData);
+
+      // 恢复识别结果 - 优先使用完整的 identificationResult，否则从单独字段构建
+      if (session.identificationResult) {
+        setIdentificationResult(session.identificationResult);
+      } else {
+        // 向后兼容：从单独字段构建
+        setIdentificationResult({
+          name: session.rootObjectName,
+          category: '',
+          brief_description: '',
+          icon: session.rootObjectIcon || '',
+          imageUrl: session.rootObjectImage
+        });
+      }
+
+      setImagePreview(session.rootObjectImage);
+
+      if (session.promptSettings) {
+        setHumorLevel(session.promptSettings.humorLevel || 50);
+        setProfessionalLevel(session.promptSettings.professionalLevel || 70);
+        // 恢复提示词模式
+        if (session.promptSettings.promptMode) {
+          setPromptMode(session.promptSettings.promptMode);
+        }
+        // 恢复自定义提示词
+        if (session.promptSettings.customPrompt) {
+          setCustomPrompt(session.promptSettings.customPrompt);
+        }
+      }
+
+      // 恢复知识卡片缓存
+      if (session.knowledgeCache) {
+        try {
+          console.log('📚 恢复知识卡片缓存:', session.knowledgeCache);
+          const cacheArray = session.knowledgeCache as [string, KnowledgeCardData][];
+          const restoredCache = new Map<string, KnowledgeCardData>(cacheArray);
+          console.log('✅ 知识卡片缓存已恢复，数量:', restoredCache.size);
+          setKnowledgeCache(restoredCache);
+        } catch (error) {
+          console.error('恢复知识卡片缓存失败:', error);
+        }
+      } else {
+        console.log('⚠️ 此会话没有保存知识卡片缓存');
+      }
+
+      setCurrentSessionId(sessionId);
+    } catch (error) {
+      console.error('❌ 加载会话错误:', error);
+      alert('加载会话失败，请重试');
+    } finally {
+      setIsLoadingSession(false); // 加载完成（无论成功或失败）
+    }
+  };
+
+  // 保存会话到数据库
+  const saveSessionToDatabase = async (showSuccessMessage: boolean = true) => {
+    if (!deconstructionTree || !identificationResult) return;
+
+    setIsSaving(true);
+
+    try {
+      const method = currentSessionId ? 'PUT' : 'POST';
+      const url = currentSessionId
+        ? `/api/sessions/${currentSessionId}`
+        : '/api/sessions';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: currentSessionId
+            ? undefined
+            : `${identificationResult.name} 拆解`,
+          treeData: deconstructionTree,
+          promptSettings: {
+            humorLevel,
+            professionalLevel,
+            customPrompt: promptMode === 'advanced' ? customPrompt : undefined
+          },
+          knowledgeCache: knowledgeCache.size > 0
+            ? Array.from(knowledgeCache.entries())
+            : undefined,
+          identificationResult: identificationResult,
+          rootObjectName: identificationResult.name,
+          rootObjectIcon: identificationResult.icon,
+          rootObjectImage: imagePreview
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('保存会话失败');
+      }
+
+      const data = await response.json();
+
+      if (!currentSessionId) {
+        setCurrentSessionId(data.session.id);
+        router.push(`/deconstruct?sessionId=${data.session.id}`);
+      }
+
+      if (showSuccessMessage) {
+        alert('保存成功！');
+      }
+    } catch (error) {
+      console.error('保存会话错误:', error);
+      if (showSuccessMessage) {
+        alert('保存失败，请重试');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // 高亮显示文本中的子节点名称
   const highlightChildrenNames = (text: string, childrenNames: string[]) => {
@@ -744,28 +1016,6 @@ export default function DeconstructionGame() {
             <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               🔬 Break It Down
             </h1>
-            {(deconstructionTree || identificationResult) && (
-              <button
-                onClick={() => {
-                  if (confirm('确定要清除所有数据并重新开始吗？')) {
-                    localStorage.removeItem('deconstructionTree');
-                    localStorage.removeItem('identificationResult');
-                    localStorage.removeItem('imagePreview');
-                    localStorage.removeItem('knowledgeCache');
-                    localStorage.removeItem('nodePositions');
-                    setDeconstructionTree(null);
-                    setIdentificationResult(null);
-                    setImagePreview(null);
-                    setImageFile(null);
-                    setKnowledgeCache(new Map());
-                  }
-                }}
-                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 rounded-lg text-red-300 text-sm font-semibold transition-all"
-                title="清除所有数据并重新开始"
-              >
-                🔄 重新开始
-              </button>
-            )}
           </div>
           <p className="text-xl text-gray-300">
             物体拆解游戏 - 探索万物的本质
@@ -1267,6 +1517,29 @@ export default function DeconstructionGame() {
           </div>
         )}
       </div>
+
+      {/* 加载进度条覆盖层 */}
+      {isLoadingSession && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-gray-900 rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="mb-6">
+                <div className="inline-block animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent"></div>
+              </div>
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+                加载中...
+              </h3>
+              <p className="text-gray-400 mb-6">
+                正在加载拆解历史记录
+              </p>
+              {/* 进度条 */}
+              <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

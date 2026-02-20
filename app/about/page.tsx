@@ -2,8 +2,10 @@
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function About() {
+  const router = useRouter();
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -198,20 +200,32 @@ export default function About() {
             </ul>
           </motion.div>
 
-          {/* 开始体验 CTA */}
+          {/* 新建拆解 CTA */}
           <motion.div
             variants={itemVariants}
             className="text-center"
           >
-            <Link href="/deconstruct">
-              <motion.button
-                className="px-12 py-5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl font-bold text-xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                🚀 立即开始体验
-              </motion.button>
-            </Link>
+            <motion.button
+              className="px-12 py-5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl font-bold text-xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                // 清除所有缓存
+                localStorage.removeItem('deconstructionTree');
+                localStorage.removeItem('identificationResult');
+                localStorage.removeItem('imagePreview');
+                localStorage.removeItem('knowledgeCache');
+                localStorage.removeItem('nodePositions');
+                localStorage.removeItem('humorLevel');
+                localStorage.removeItem('professionalLevel');
+                localStorage.removeItem('promptMode');
+                localStorage.removeItem('customPrompt');
+                // 导航到拆解页面
+                router.push('/deconstruct');
+              }}
+            >
+              🚀 新建拆解
+            </motion.button>
           </motion.div>
 
           {/* Footer */}

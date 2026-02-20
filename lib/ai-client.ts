@@ -29,34 +29,48 @@ function validateConfig() {
  * 调用自定义AI视觉模型（OpenAI兼容格式）
  */
 async function callCustomVision(imageBase64: string, prompt: string): Promise<string> {
-  const response = await fetch(`${AI_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${AI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: AI_MODEL_VISION,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
-          ]
-        }
-      ],
-      max_tokens: 1000,
-    })
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120秒超时（视觉模型通常较慢）
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Custom AI API error: ${response.status} - ${errorText}`);
+  try {
+    const response = await fetch(`${AI_BASE_URL}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${AI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: AI_MODEL_VISION,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imageBase64}` } }
+            ]
+          }
+        ],
+        max_tokens: 1000,
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Custom AI API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Vision API request timeout (120s)');
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
 }
 
 /**
@@ -107,43 +121,57 @@ async function callCustomText(prompt: string): Promise<string> {
  * 调用通义千问视觉模型
  */
 async function callQwenVision(imageBase64: string, prompt: string): Promise<string> {
-  const response = await fetch(DASHSCOPE_BASE_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'qwen-vl-plus',
-      input: {
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { text: prompt },
-              { image: `data:image/jpeg;base64,${imageBase64}` }
-            ]
-          }
-        ]
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 120秒超时
+
+  try {
+    const response = await fetch(DASHSCOPE_BASE_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
+        'Content-Type': 'application/json',
       },
-      parameters: {
-        result_format: 'message'
-      }
-    })
-  });
+      body: JSON.stringify({
+        model: 'qwen-vl-plus',
+        input: {
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { text: prompt },
+                { image: `data:image/jpeg;base64,${imageBase64}` }
+              ]
+            }
+          ]
+        },
+        parameters: {
+          result_format: 'message'
+        }
+      }),
+      signal: controller.signal
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Qwen API error: ${response.status} - ${errorText}`);
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Qwen API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+
+    if (data.output?.choices?.[0]?.message?.content?.[0]?.text) {
+      return data.output.choices[0].message.content[0].text;
+    }
+
+    throw new Error('Invalid response format from Qwen API');
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error('Qwen Vision API request timeout (120s)');
+    }
+    throw error;
   }
-
-  const data = await response.json();
-
-  if (data.output?.choices?.[0]?.message?.content?.[0]?.text) {
-    return data.output.choices[0].message.content[0].text;
-  }
-
-  throw new Error('Invalid response format from Qwen API');
 }
 
 /**

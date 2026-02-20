@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { callTextAPI } from '@/lib/ai-client';
 
 // 重试函数
@@ -33,6 +35,15 @@ async function retryWithBackoff<T>(
 }
 
 export async function POST(request: NextRequest) {
+  // 检查认证
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   try {
     const { parentName, parentDescription, children } = await request.json();
 

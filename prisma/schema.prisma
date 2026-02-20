@@ -1,0 +1,55 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions      DeconstructionSession[]
+
+  @@index([email])
+}
+
+model DeconstructionSession {
+  id                String   @id @default(cuid())
+  userId            String
+  title             String
+  rootObjectName    String
+  rootObjectIcon    String?
+  rootObjectImage   String?
+
+  // Store the entire tree as JSON
+  treeData          Json
+
+  // Store full identification result
+  identificationResult Json?
+
+  // Store prompt settings
+  promptSettings    Json?
+
+  // Store knowledge card cache
+  knowledgeCache    Json?
+
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastAccessedAt    DateTime @default(now())
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, updatedAt])
+  @@index([userId, lastAccessedAt])
+}

@@ -3,8 +3,10 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRef, useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const router = useRouter();
   const title = "BREAK IT DOWN!";
   const letters = title.split('');
 
@@ -240,18 +242,30 @@ export default function Home() {
           initial="hidden"
           animate="visible"
         >
-          {/* 开始体验按钮 */}
+          {/* 新建拆解按钮 */}
           <div ref={startButtonRef}>
-            <Link href="/deconstruct">
-              <motion.button
-                className="px-12 py-5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl font-bold text-xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 relative overflow-hidden group"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="relative z-10">开始体验</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </motion.button>
-            </Link>
+            <motion.button
+              className="px-12 py-5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl font-bold text-xl shadow-2xl hover:shadow-purple-500/50 transition-all duration-300 relative overflow-hidden group"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                // 清除所有缓存
+                localStorage.removeItem('deconstructionTree');
+                localStorage.removeItem('identificationResult');
+                localStorage.removeItem('imagePreview');
+                localStorage.removeItem('knowledgeCache');
+                localStorage.removeItem('nodePositions');
+                localStorage.removeItem('humorLevel');
+                localStorage.removeItem('professionalLevel');
+                localStorage.removeItem('promptMode');
+                localStorage.removeItem('customPrompt');
+                // 导航到拆解页面
+                router.push('/deconstruct');
+              }}
+            >
+              <span className="relative z-10">🚀 新建拆解</span>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </motion.button>
           </div>
 
           {/* 关于我们按钮 */}
