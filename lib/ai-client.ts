@@ -335,39 +335,63 @@ BASIC ELEMENTS LIST (Final Leaf Nodes MUST be from this list):
 
 DECOMPOSITION STRATEGY (Maximum 6 levels):
 
-Level 1 - ASSEMBLED PRODUCTS:
-→ Break into 3-5 major functional components only
-→ Example: "Smartphone" → Display, Battery, Circuit board, Housing
+**CRITICAL: 第一次拆解必须是功能组件，绝不能直接到材料！**
 
-Level 2-3 - MAJOR COMPONENTS:
-→ Break into main material types (skip minor parts)
-→ Example: "Display" → Glass, Plastic frame, Metal connectors
+Level 1 - ASSEMBLED PRODUCTS (完整产品):
+→ **必须拆解成 3-5 个主要功能组件**
+→ **禁止**直接拆解到材料（如铁矿石、塑料、玻璃等）
+→ 例子：
+  * "乒乓球桌" → 球网、桌面、支撑腿 ✅
+  * "乒乓球桌" → 铁矿石、木材、塑料 ❌ (错误！太深了)
+  * "智能手机" → 屏幕、电池、主板、外壳 ✅
+  * "汽车" → 发动机、车身、轮胎、座椅 ✅
 
-Level 4-5 - MATERIALS:
-→ Identify the material category
-→ Example: "Glass" → Silica Sand, Soda ash (from Clay/Stone)
-→ Example: "Plastic" → Crude Oil
+Level 2-3 - MAJOR COMPONENTS (主要组件):
+→ 拆解成主要材料类型或子组件
+→ 例子：
+  * "屏幕" → 玻璃面板、液晶层、背光模组 ✅
+  * "桌面" → 木板、金属边框、涂层 ✅
 
-Level 6 - BASIC ELEMENTS:
-→ MUST be from the Basic Elements List above
-→ Mark is_raw_material = true
+Level 4-5 - MATERIALS (材料):
+→ 识别材料类别，准备跳到基础元素
+→ 例子：
+  * "玻璃面板" → 硅砂、石灰石 ✅
+  * "木板" → 木材 ✅
+  * "塑料" → 原油 ✅
+
+Level 6 - BASIC ELEMENTS (基础元素):
+→ **必须**来自上面的基础元素列表
+→ 标记 is_raw_material = true
 
 IMPORTANT RULES:
 1. Use Chinese for all names and descriptions (中文输出)
-2. Be LESS precise - combine similar materials, skip minor components
-3. When you reach a material that's 1-2 steps from basic elements, jump directly
-4. NEVER exceed 6 levels of decomposition
-5. Final nodes MUST match the Basic Elements List exactly
-6. Skip chemical synthesis steps - go straight to basic elements
+2. **第一次拆解必须是功能组件，不能是材料！**
+3. 保持合理的抽象层次 - 不要一次拆解太深
+4. 每次只拆解一层，让用户可以逐步深入
+5. 只有在第 4-6 层才能出现基础元素（铁矿石、原油等）
+6. 最终节点必须精确匹配基础元素列表
+7. 跳过化学合成步骤 - 直接到基础元素
 
 EXAMPLES:
 
-✓ "塑料瓶" → 塑料 → 原油 (2 levels, good!)
-✓ "玻璃窗" → 玻璃 → 硅砂 (2 levels, good!)
-✓ "钢架" → 钢材 → 铁矿石, 煤炭 (2 levels, good!)
-✓ "电路板" → PCB基板, 铜线, 焊料 → (next level: 硅砂, 铜矿石, etc.)
+**第一层拆解（功能组件）：**
+✓ "乒乓球桌" → 球网, 桌面, 支撑腿 (功能组件，正确！)
+✓ "笔记本电脑" → 屏幕, 键盘, 主板, 电池, 外壳 (功能组件，正确！)
+✓ "自行车" → 车架, 车轮, 链条, 刹车, 座椅 (功能组件，正确！)
+❌ "乒乓球桌" → 铁矿石, 木材, 塑料 (直接到材料，错误！)
+❌ "笔记本电脑" → 硅砂, 铜矿石, 原油 (直接到原材料，错误！)
 
-❌ "塑料瓶" → 聚乙烯树脂 → 聚合物颗粒 → 精炼石油 → 原油 (TOO DETAILED!)
+**第二层拆解（子组件或材料类型）：**
+✓ "桌面" → 木板, 金属边框, 涂层 (材料类型，正确！)
+✓ "屏幕" → 玻璃面板, 液晶层, 背光模组 (子组件，正确！)
+
+**第三层拆解（具体材料）：**
+✓ "木板" → 木材 (具体材料，正确！)
+✓ "金属边框" → 铝合金 (具体材料，正确！)
+
+**第四层拆解（基础元素）：**
+✓ "铝合金" → 铝土矿 (基础元素，正确！)
+✓ "木材" → 木材 (已经是基础元素，标记 is_raw_material = true)
 
 Output Format: JSON only (Chinese names and descriptions).
 {
